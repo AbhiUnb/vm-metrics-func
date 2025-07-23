@@ -278,9 +278,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 q1 = sorted_vals[max(0, q1_idx - 1)]
                 q3 = sorted_vals[min(n - 1, q3_idx - 1)]
                 iqr = q3 - q1
-                lower_bound = max(0, q1 - 1.5 * iqr)  # idle threshold
-                upper_bound = q3 + 1.5 * iqr          # busy threshold
-                return lower_bound, upper_bound
+                
+                # Dynamic thresholds
+                dynamic_lower = max(0, q1 - 1.5 * iqr)
+                dynamic_upper = q3 + 1.5 * iqr
+                
+                # ✅ Enforce minimum idle threshold of 10%
+                fixed_min_idle = 10.0
+                final_idle_threshold = min(dynamic_lower, fixed_min_idle)
+                
+                return final_idle_threshold, dynamic_upper
 
             def detect_idle_windows(cpu_vals, disk_vals, ts_vals):
                 idle_windows = []
@@ -345,13 +352,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
                 idle_windows, busy_windows = detect_idle_windows(values, disk_vals, timestamps_day)
 
-                stop_time = idle_windows[0]["start"] if idle_windows else None
+                stop_time = idle_windows[0]["start"] if idle_windows else "No sustained idle window detected"
                 start_time = busy_windows[0] if busy_windows else "No busy workload detected"
 
-                stop_window_cpu_usage = idle_windows[0]["avg_cpu"] if idle_windows else None
+                stop_window_cpu_usage = idle_windows[0]["avg_cpu"] if idle_windows else "No sustained idle usage"
                 start_window_cpu_usage = None
                 start_window_disk_usage = None
-                stop_window_disk_usage = idle_windows[0]["avg_disk"] if idle_windows else None
+                stop_window_disk_usage = idle_windows[0]["avg_disk"] if idle_windows else "No sustained idle usage"
                 if start_time and start_time != "No busy workload detected":
                     try:
                         idx = timestamps_day.index(start_time)
@@ -381,7 +388,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
             vm_results.append({
                 "name": vm.name,
-                "cpu_values": [{"timestamp": t, "value": v} for t, v in zip(timestamps, cpu_values)],
                 "daily_recommendations": daily_results
             })
 
