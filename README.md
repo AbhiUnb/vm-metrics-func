@@ -403,3 +403,37 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             f"Error: {str(e)}",
             status_code=500
         )
+--------------
+
+
+{
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.Compute/disks"
+        },
+        {
+          "anyOf": [
+            {
+              "field": "Microsoft.Compute/disks/sku.name",
+              "in": [
+                "Premium_LRS",
+                "Premium_ZRS",
+                "PremiumV2_LRS"
+              ]
+            },
+            {
+              "field": "Microsoft.Compute/disks/sku.tier",
+              "equals": "Premium"
+            }
+          ]
+        }
+      ]
+    },
+    "then": {
+      "effect": "deny"
+    }
+  }
+}
